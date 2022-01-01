@@ -2,7 +2,7 @@
 
 This project is an Exploratory Data Analysis (EDA) with R. The project was created for Udacity's Data Analyst Nanodegree. 
 
-Access the final report here https://sbsousa.github.io/LoanEDA
+Access the final report here: https://sbsousa.github.io/LoanEDA
 
 ## Project Description:
 
