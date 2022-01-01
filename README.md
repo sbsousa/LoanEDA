@@ -16,7 +16,7 @@ The EDA was conducted in R-Studio using multiple R packages such as knitr, diply
 
 ## License:
 
-This project is publicly available for educational purposes. Please acknowledge your sources.
+This project is publicly available for educational purposes. Please acknowledge this source if you use it.
 
 ## Sources
 
