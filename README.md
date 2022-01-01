@@ -1,4 +1,4 @@
-# LoanEDA
+# Loan Exploratory Data Analysis
 
 This project is an Exploratory Data Analysis (EDA) with R. The project was created for Udacity's Data Analyst Nanodegree. 
 
