@@ -1,0 +1,794 @@
+---
+title: "Prosper Loan Data Analysis"
+author: "Shelly Sousa"
+date: "11/23/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff = 80), tidy=TRUE, echo=TRUE)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Import/Install required libraries for the project
+library(knitr)
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+library(GGally)
+library(scales)
+library(car)
+library(devtools)
+```
+
+```{r echo=FALSE, data_load}
+# Load the csv
+loanData <- read.csv('prosperLoanData.csv')
+```
+
+## Table of Contents
+
+    Introduction
+    Univariate Plots
+    Univariate Analysis
+    Bivariate Plots
+    Bivariate Analysis
+    Multivariate Plots
+    Multivariate Analysis
+    Final Plots and Summary
+    Reflection
+
+# Introduction
+
+This analysis explores information from the Prosper Loan dataset. Udacity's description states that the provided csv file contains data for 113,937 loans. 81 distinct attributes are included for each loan.
+
+According to their [website](https://www.prosper.com/about "website"): "Prosper was founded in 2005 as the first peer-to-peer lending marketplace in the United States. Since then, Prosper has facilitated more than \$19 billion in loans to more than 1,160,000 people." Prosper provides its partners with API access for the development of loan and investment software clients.
+
+I selected this dataset because it is relevant to my career. Recently, I accepted a position as a software engineer at a financial services organization. Their specialty is lending. Exploring the data in this project may improve my general understanding of lending practices and the borrowers who use my applications.
+
+### Project Description
+
+The goal of the project is to analyze loan attributes and gain insights about the various loan characteristics. For this analysis, I will focus on a subset of the attributes and attempt to answer the following questions:
+
+<ul>
+
+<li>
+
+What borrower characteristics are of interest?
+
+</li>
+
+<li>
+
+How does a borrower's occupation or income affect their Prosper Rating?
+
+</li>
+
+<li>
+
+Is there any correlation between other borrower and loan attributes?
+
+</li>
+
+</ul>
+
+# Univariate Plots
+
+First, let's take a look at the data and evaluate single attributes of interest.
+
+<br>
+
+##### Number of Rows
+
+```{r echo=FALSE, loan_summary}
+nrow(loanData)
+```
+
+<br>
+
+##### Number of Columns
+
+```{r echo=FALSE}
+ncol(loanData)
+```
+
+<br>
+
+##### List of Column Names
+
+```{r echo=FALSE}
+names(loanData)
+```
+
+<br>
+
+```{r echo=FALSE}
+CreditScoreAverage <- ((loanData$CreditScoreRangeLower + 
+                          loanData$CreditScoreRangeUpper) / 2)
+
+loanData$CreditScoreAverage <- CreditScoreAverage
+# Creating a new column and adding it to the dataframe. 
+# There are two credit score ranges for each loan, low and high. I would like to reference a single average credit score rating for this analysis.
+
+loanData <- subset(loanData, (CreditScoreAverage >= 300 & CreditScoreAverage <= 850))
+# Subsetting the data to eliminate the small number of records that do not meet the criteria for standard credit scores (see analysis and sources). 
+# This attribute will be utilized in most of my plots. It is better to subset and remove the rows to improve performance.
+
+loanData$StatedMonthlyIncome <- (round(loanData$StatedMonthlyIncome, digits = 0))
+# The StatedMonthlyIncome integer is 6 decimals by default. Precise income values are not needed for this analysis.
+```
+
+```{r echo=FALSE, data_drop}
+loanData <- select(loanData,-c(1:4, 7:15, 17, 23:37, 40:48, 51:81))
+# Dropping the columns that are not needed
+```
+<br>
+
+Borrower information like credit score and stated monthly income are of interest to me. I prepared the data for the analysis with the following actions:
+
+<ul>
+
+<li>
+
+A new variable, CreditScoreAverage, was calculated from the upper and lower credit scores for each loan.
+
+</li>
+
+<li>
+
+CreditScoreAverage was limited to the standard FICO range, 300-850
+
+</li>
+
+<li>
+
+StatedMonthlyIncome was modified by rounding the values to the nearest whole number.
+
+</li>
+
+</ul>
+
+Let's drop the columns that we do not need for this exploration and review the summary again.
+    
+<br>
+    
+##### Number of Rows
+
+```{r echo=FALSE}
+nrow(loanData)
+```
+
+<br>
+
+##### New Number of Columns
+
+```{r echo=FALSE}
+ncol(loanData)
+```
+
+<br>
+
+##### New List of Column Names
+
+```{r echo=FALSE}
+names(loanData)
+```
+
+<br> Much better. Now we can observe the structure of the modified dataset and review the data types and values.
+
+<br>
+
+### Data Summary & Structure
+
+<br>
+
+#### Loan Data Summary
+
+```{r echo=FALSE}
+summary(loanData)
+```
+
+<br>
+
+#### Loan Data Structure
+
+```{r echo=FALSE}
+str(loanData)
+```
+
+<br> We have enough information to proceed.
+
+Due to the simplicity of individual variable plots, each selected loan attribute will be presented in a stream of consciousness exploration. Detailed commentary is provided in the Univariate Analysis section.
+
+Let's plot and explore the data! 
+
+<br>
+
+### Individual Variables
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Univariate_Attributes}
+ggplot(data=loanData, aes(ProsperScore)) + 
+  geom_bar() +
+  labs(title="Prosper Scores", x="Prosper Score", y="Loans")
+```
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data=loanData, aes(CreditScoreAverage)) + 
+  geom_histogram(bins=30) +
+  labs(title="Average Credit Scores", x="Credit Score", y="Loans")
+# After reviewing the initial output and summary, I decided to limit the x axis.
+# Credit scores range from 300-850.
+```
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height = 10, fig.width = 6}
+loanData %>% 
+	group_by(BorrowerState) %>% 
+	summarise(count = n()) %>% 
+	ggplot(aes(y = reorder(BorrowerState,(count)), x = count)) + 
+		geom_bar(stat = 'identity') +
+    labs(title = "Number of Loans by Borrower State", x =  "Loans", y = "State") 
+```
+
+<br> <br>
+
+#### Number of Unique Occupations
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Unique (Distinct) Occupations sorted alphabetically
+n_distinct(loanData$Occupation)
+occUnique <- unique(sort(loanData$Occupation))
+print(occUnique)
+```
+
+<br>
+
+```{r echo=FALSE, fig.height = 10, fig.width = 8}
+loanData %>% 
+	group_by(Occupation) %>% 
+	summarise(count = n()) %>% 
+	ggplot(aes(y = reorder(Occupation,(count)), x = count)) + 
+		geom_bar(stat = 'identity') +
+    labs(title = "Frequency of Occupations", x = "Loans", y = "Occupation")
+```
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+loanData %>% 
+    group_by(Occupation) %>%
+    filter(Occupation != 'Other') %>%
+    summarise(count = n()) %>% 
+    top_n(5) %>% 
+    ggplot(aes(y = reorder(Occupation,(count)), x = count)) + 
+    geom_bar(stat = 'identity') +
+    labs(title = "Top 5 Occupations (excluding Other)", x = "Loans", y = "Occupation")
+```
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+loanData %>% 
+	group_by(EmploymentStatus) %>% 
+	summarise(count = n()) %>% 
+	ggplot(aes(y = reorder(EmploymentStatus,(count)), x = count)) + 
+		geom_bar(stat = 'identity') +
+  labs(title = "Employment Statuses", y = "Employment Status", x = "Loans")
+```
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data=loanData, aes(EmploymentStatusDuration)) + 
+  geom_bar() +
+  labs(title = "Employment Durations", x = "Duration (Months)", y = "Loans") 
+```
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data=loanData, aes(DelinquenciesLast7Years)) + 
+  geom_bar() +
+  labs(title = "Delinquencies Last 7 Years",x = "Delinquencies", y = "Loans") +
+  xlim(-1, 40)
+# After reviewing the initial output and summary, I decided to limit the x axis. The mean for delinquencies is 4.
+```
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+loanDataPR10 <- subset(loanData, !(PublicRecordsLast10Years > 8))
+# Removing a small number of outliers. The mean for delinquencies is 0.3126. Most borrowers do not have public records. 
+ggplot(data = loanDataPR10, aes(PublicRecordsLast10Years)) +
+  geom_bar() +
+  labs(title = "Public Records Last 10 Years", x = "Public Records", y = "Loans") +
+  xlim(-1, 8)
+```
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = loanData, aes(Term)) + 
+  geom_bar() +
+  labs(title = "Term Lengths", x = "Term", y = "Loans") 
+```
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data=loanData, aes(IsBorrowerHomeowner)) + 
+  geom_bar() +
+  labs(title="Borrowers who are Current Homeowners", x="Homeowner", y="Loans")
+```
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data=loanData, aes(IncomeVerifiable)) + 
+  geom_bar() +
+  labs(title="Borrowers with Verifiable Income", x="Verifiable Income", y="Loans")
+```
+
+<br> <br>
+
+# Univariate Analysis
+
+<br>
+
+### What is the structure of your dataset?
+
+There are 113,937 loans in the dataset with 81 unique characteristics. Although 13 loan attributes will be utilized for this analysis, the following data ranges (low to high) are relevant:
+
+    Prosper Scores: 1-11
+    Average Credit Scores: 9.5-889.5 (limited to 300-850)
+
+<br>
+
+#### Details:
+
+    The most common Prosper Scores are 4, 6, and 7.
+
+    Most borrower credit scores average somewhere between 690-730. 
+
+    A significant number of borrowers in this dataset live in California.
+
+    There are 68 unique borrower occupations. 28617 occupations are categorized
+    as "Other". 3588 occupations are null.
+
+    Most borrowers are currently employed with a median duration of 67 months.
+
+    Most borrowers do not have public records that impact their credit. 
+
+    A small number of borrower deliquinces (4) in the last 7 years is common.
+
+    The median loan term is 36 months. 
+
+    Approximately half of the borrowers in the dataset are current homeowners.
+
+    The majority of loans in the dataset have verifiable sources of income. 
+
+### What is/are the main feature(s) of interest in your dataset?
+
+For my analysis, the main features are the attributes of interest are those that tell us more about the borrowers. 
+
+What is their occupation? 
+What is their credit score? 
+Is there a correlation between these characteristics and the Prosper Score? 
+
+Here are the primary characteristics:
+
+    ProsperScore: 
+    A custom risk score built using historical Prosper data. The score ranges from 1-10, with 10 being the best, or lowest risk score. Applicable for loans originated after July 2009.
+
+    CreditScoreAverage: 
+    Aggregate credit score taken from the highest and lowest scores
+
+    EmploymentStatus: 
+    The employment status of the borrower at the time they posted the listing.
+
+    EmploymentStatusDuration: 
+    The length in months of the employment status at the time the listing was created.
+
+    Occupation: 
+    The Occupation selected by the Borrower at the time they created the listing.
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+
+The following secondary characteristics will be used to further explore the borrower and loan data:
+
+    BorrowerState: 
+    The two letter abbreviation of the state of the address of the borrower at the time the Listing was created.
+
+    DelinquenciesLast7Years: 
+    Number of delinquencies in the past 7 years at the time the credit profile was pulled.
+
+    IncomeVerifiable: 
+    The borrower indicated they have the required documentation to support their income.
+
+    IsBorrowerHomeowner: 
+    A Borrower will be classified as a homowner if they have a mortgage on their credit profile or provide documentation confirming they are a homeowner.
+
+    LoanStatus: 
+    The current status of the loan: Cancelled, Chargedoff, Completed, Current, Defaulted, FinalPaymentInProgress, PastDue. The PastDue status will be accompanied by a delinquency bucket.
+
+    PublicRecordsLast10Years: 
+    Number of public records in the past 10 years at the time the credit profile was pulled.
+
+    StatedMonthlyIncome: 
+    The monthly income the borrower stated at the time the listing was created.
+
+    Term: 
+    The length of the loan expressed in months.
+
+### Did you create any new variables from existing variables in the dataset?
+
+Yes. I created an average credit score variable, CreditScoreAverage, by adding the Lower and Upper Credit Score values for each loan and dividing by two.
+
+### Of the features you investigated, were there any unusual distributions?
+
+It highly unusual for any US citizen to attain a double-digit number of public records. The max number of public records for a borrower in this dataset is 38. That is a questionable outlier.
+
+There is a minimum value of 9.5 for a credit score in the dataset. According to American Express, the two most commonly used credit scoring models, FICO and VantageScore, both rank credit scores on a scale from 300 to 850. I limited the dataset and excluded rows with scores outside of the 300-850 range. This is a small number of rows (less than 1% of the total number of rows), so their removal will not significantly impact the analysis.
+
+I noticed a large number of rows with loan data from California residents. Exploring data from specific borrower states could skew the analysis so I will not continue to explore it.
+
+### Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+
+Yes. In addition to the CreditScoreAverage subset, I dropped the columns that were not needed for my exploration. This reduced the amount of data that the compiler needs to process for each function. I also rounded all values for StatedMonthlyIncome to the nearest whole number.
+
+<br>
+
+# Bivariate Plots
+
+In this section, we will evaluate two characteristics in each plot.
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width = 10, Bivariate_Plots}
+boxplot(data = loanData, ProsperScore ~ CreditScoreAverage, main = "Credit Score by Prosper Score", xlab="Average Credit Score", ylab="Prosper Score")
+# I am using a simple boxplot with R for this comparison
+```
+
+<br> We can see that Prosper Scores are better for borrowers with higher average credit scores. I will use the Average Credit Score to explore more characteristics in the dataset.
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width = 10}
+ggplot(data = loanData, aes(x = CreditScoreAverage, fill = EmploymentStatus)) + 
+  geom_histogram(binwidth = 500, aes(y = ..density..), color = "black") +
+  facet_wrap(~ EmploymentStatus, scale = "free") +
+  scale_y_continuous(breaks = c(3,6,9)) +
+  geom_density(color = "black", lwd = 0.5, alpha = 0.5) +
+  labs(title = "Credit Score by Employment Status", x = "Average Credit Score") + 
+  scale_fill_hue(l = 40, c = 150) +
+  xlim(300, 850)
+# ggplot gave me the most flexibility for this plot. Facet wrap creates a series of plots that are easy to analyze.
+```
+
+<br> Employment does not guarantee that the borrower will have a high credit score. For example, part-time employees are more likely to have low credit scores. Surprisingly, Retirees (who are not likely to receive employment income) appear to have a credit score advantage.
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = loanData, aes(EmploymentStatus, fill = StatedMonthlyIncome)) + 
+  geom_bar() +
+  labs(title = "Employment Statuses by Stated Monthly Income", x = "Employment Status", y = "Stated Monthly Income") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# Added ggplot theme to rotate text 45 degrees and adjust the text so it does not overlap with the graph
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = loanData, aes(ProsperScore, fill = StatedMonthlyIncome)) + 
+  geom_bar()+
+  labs(title="Prosper Scores by Stated Monthly Income", x = "ProsperScore", y = "StatedMonthlyIncome") 
+# Basic ggplot bar plot with a Monthly Income fill.
+```
+
+<br> After reviewing the employment status plots, I became curious about the relationship between stated income and employment statuses.
+
+Another surprise. Retirees do not report a monthly income. They may have other financial resources like retirement funds or pensions but that does not seem to be reflected in the monthly income values.
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = loanData, aes(x = CreditScoreAverage, y = StatedMonthlyIncome), 
+       color = StatedMonthlyIncome) +
+  geom_point(alpha = 0.4, position=position_jitter(height = .5, width = .5)) +
+  labs(title = "Credit Score by Monthly Income", x = "Average Credit Score", y = "Stated Monthly Income (USD)") +
+  xlim(300, 850) +
+  ylim(0, 100000)
+
+# There are very few salaries above $100,000 in this dataset. The outliers skew the visualization so I decided to limit the y axis and exclude them.
+```
+
+<br> There appears to be a relationship between low incomes and low credit scores. The lowest average credit scores in the dataset are associated with borrowers who report incomes below \$25000 USD annually.
+
+High incomes are visible across the median. Incomes are slightly higher in the 800-850 credit score range, but they are not as high as I anticipated. I will explore this further in the Multivariate Analysis.
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = loanData, aes(CreditScoreAverage, EmploymentStatusDuration, color=CreditScoreAverage)) +
+  geom_point(alpha = 0.01, position=position_jitter(height=.5, width=.5)) +
+  labs(title="Credit Score by Employment Duration", x = "Average Credit Score", y = "Employment Duration (Months)") + 
+  xlim(300, 850) 
+# Using a point plot with jitter to blur the values slightly and increase visibility of potential relationships 
+```
+
+<br> Most borrowers are within the mean for average credit scores regardless of employment history.
+
+There is a weak relationship between borrowers with a shorter employment duration and lower credit scores. A slightly stronger relationship exists for borrowers with longer employment durations and higher credit scores.
+
+These findings align with the results in the prior plots.
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width = 10}
+ggplot(data = loanData, aes(x = CreditScoreAverage, fill = LoanStatus)) + 
+  geom_histogram(binwidth = 500, aes( y=..density..), color = "black") +
+  facet_wrap(~ LoanStatus, scale = "free") +
+  scale_y_continuous(breaks = c(3,6,9)) +
+  geom_density(color = "black", lwd = 0.5, alpha = 0.7) +
+  labs(title="Credit Score by Loan Status", x="Average Credit Score") + 
+  scale_fill_hue(l = 40, c = 150) +
+  xlim(300, 850)
+# Another ggplot histogram with facets to show the credit scores for each loan status category. I am using scaled breaks on the y axis to expand the fill area. This hue was also selected for improved accessibility.
+```
+
+<br> Without more information it is difficult to make an inference. Is a low credit score caused by past due payments and defaulted loans? Or did the past due payments cause the low credit score?
+
+We can clearly identify a greater occurrence of lower credit scores for borrowers of loans which were canceled or defaulted. Credit scores for Current loans vary but they are close to the median.
+
+Completed loans and loans in their final payment stage are more likely to have some scores that are above the median. This may indicate that successful completion of a full loan term shows that a borrower is less likely to pose a risk to lenders in the future.
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = loanData, aes(Term, fill = LoanStatus)) + 
+  geom_bar() +
+  labs(title = "Employment Statuses by Stated Monthly Income", x = "EmploymentStatus", y = "StatedMonthlyIncome") +
+  scale_fill_manual(values = c('Defaulted' = 'orange'))
+
+# Defaulted loans are highlighted with orange for better visibility.
+```
+
+<br> Are borrowers more likely to default on loans with longer terms? Nope!
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = loanData, aes(EmploymentStatusDuration, DelinquenciesLast7Years, color = EmploymentStatusDuration)) +
+  geom_point(alpha = 0.02, position = position_jitter(height = .5, width = .5)) +
+  labs(title = "Delinquencies by Employment Duration", 
+       x = "Duration (Months)", y = "Delinquencies")
+# Showing the full range in this plot
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+boxplot(data = loanData, ProsperScore ~ DelinquenciesLast7Years, main = "Delinquencies by Prosper Score", xlab = "Delinquencies", ylab = "Prosper Score",  xlim = c(0, 15)) 
+# Displaying a second graph for comparison purposes and limiting the plot
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = loanDataPR10, aes(EmploymentStatusDuration, PublicRecordsLast10Years, color = EmploymentStatusDuration)) +
+  geom_point(alpha = 0.04, position = position_jitter(height = .5, width = .5)) +
+  labs(title = "Public Records by Employment Duration", 
+       x = "Duration (Months)", y = "Public Records") 
+# I increased the alpha setting to better highlight the points.
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+boxplot(data = loanData, ProsperScore ~ PublicRecordsLast10Years, main = "Public Records by Prosper Score", xlab = "Public Records", ylab = "Prosper Score")
+# Displaying a second graph for comparison purposes.
+```
+
+<br> I decided to display two plots for each to observe the differences between two types of visualizations for the same data.
+
+These plots show that borrowers with high credit scores have few, if any, delinquencies or public records. We can infer that these are two factors which contribute to higher Prosper scores.
+
+It is odd that although 1 or 2 public records decrease the borrower's Prosper score, this is not a consistent trend.
+
+<br> <br>
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+
+The relationships between unique borrower characteristics, Prosper scores, and credit scores can be difficult to identify. It is often easier to determine the factors which contribute to a low credit score than a high credit score.
+
+The creditworthiness of a borrower is calculated using multiple factors. Although they are important, income and employment are not the most significant factors. Borrowers with varying occupations and salaries can achieve a high Prosper score.
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+
+Yes. I was surprised to see that Retirees are more likely to have better credit scores although they do not receive a regular income from employment.
+
+### What was the strongest relationship you found?
+
+The strongest relationship exists between the Prosper Score and Credit Score. There is a clear relationship. Higher credit scores are preferred by Prosper lenders. Borrowers with high credit scores are less likely to default on their loans which is a less risky investment for a lender.
+
+<br>
+
+# Multivariate Plots Section
+
+In this section, we will evaluate multiple characteristics and analyze complex relationships.
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Multivariate_Plots}
+ggcorr(loanData, label = TRUE, label_size = 3, hjust = 0.8, size = 2.5, color = "black", layout.exp = 2) +
+  labs(title = "Prosper Loan Correlaton Matrix")
+# This uses the GGally library
+```
+
+<br> This plot shows the positive, negative, and neutral correlations between the attributes that I chose to select. The output confirms the discoveries about Prosper Scores and credit scores that were made in the Bivariate Plots section. There is a very strong correlation between Prosper scores and credit scores.
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggpairs(loanData, diag = list(continuous = "density"), columns = c("CreditScoreAverage","DelinquenciesLast7Years","PublicRecordsLast10Years"), columnLabels = c("Credit Score", "Delinquencies", "Public Records"), color = "d", axisLabels = "show") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "Deliquency and Public Record Impact on Credit Score")
+# Creating additional Prosper Score plots to highlight the results from the correlation matrix
+```
+
+<br> <br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggpairs(loanData, diag = list(continuous = "density"), columns = c("ProsperScore","DelinquenciesLast7Years","PublicRecordsLast10Years"), columnLabels = c("Prosper Score", "Delinquencies", "Public Records"), color = "d", axisLabels = "show") +
+labs(title = "Deliquency and Public Record Impact on Prosper Score")
+# Creating additional Prosper Score plots to highlight the results from the correlation matrix
+```
+
+<br> These plots use the ggpairs function. I wanted to closely examine the Delinquency and Public Record correlations. The plots validate the output of the correlation matrix and provide visualizations of the data.
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(loanData, aes(CreditScoreAverage, StatedMonthlyIncome, color = factor(ProsperScore))) +
+  scale_x_continuous(limits = c(400, 850)) +
+  scale_y_continuous(limits = c(0, 100000)) +
+  geom_point(alpha = 0.3, position = "jitter") +
+  theme_minimal() +
+  theme(legend.title=element_blank()) +
+  labs(title = "Credit Scores, Monthly Income, and Prosper Scores", x = "Credit Score", y = "Stated Monthly Income")
+# Limiting the y axis to improve the scaling. There are few outliers above 100,000
+```
+
+<br> <br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(loanData, aes(CreditScoreAverage, EmploymentStatusDuration, color = factor(ProsperScore))) +
+  scale_x_continuous(limits = c(400, 850)) +
+  scale_y_continuous(limits = c(0, 600)) +
+  geom_point(alpha = 0.3, position = "jitter") +
+  theme(legend.title=element_blank()) +
+  labs(title = "Credit Scores, Employment Duration, and Prosper Scores", x = "Credit Score", y = "Duration (Months)")
+```
+
+<br> The next two plots expand upon the Bivariate analysis of monthly income and employment status. We can see that borrowers with a low credit score will not receive a high Prosper Score. Length of employment and monthly income cannot change this.
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10}
+ggpairs(loanData, columns = c("CreditScoreAverage", "ProsperScore", "LoanStatus"), aes(color = LoanStatus), legend = 1, diag = list(continuous = wrap("densityDiag", alpha = 0.5 ))) +
+  theme(legend.position = "bottom") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(fill = "LoanStatus") +
+    labs(title = "Credit Score, Employment Duration, and Prosper Scores", x = "Credit Score", y = "Duration (Months)")
+```
+
+<br> The last plot combines the Prosper Score, Credit Score, and Loan Status to show a colorful array of visualizations. The correlation summary confirms and further expands upon the prior facet wrap plots. Borrowers who are either current or previously completed their loan payments have better Prosper Scores and credit scores.
+
+<br>
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+
+The correlation matrix was especially helpful. It highlighted both strong and weak relationships in a simple visualization.
+
+As I noted in the Bivariate Plots analysis, credit scores are better for borrowers who successfully completed their loan terms. The multivariate plots confirmed this.
+
+### Were there any interesting or surprising interactions between features?
+
+The point plots highlighted loans that do not have Prosper Scores (NA). The associated borrower's credit scores and salaries are typically low. This was surprising. I did not explore the NA value closely before generating this plot and had not considered it as a point (pun intended) of interest. The chosen style of the graphic and the colors made the relationship easier to identify.
+
+------------------------------------------------------------------------
+
+# Final Plots and Summary
+
+### Plot One
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width = 10}
+boxplot(data = loanData, ProsperScore ~ CreditScoreAverage, main = "Credit Score by Prosper Score", xlab = "Average Credit Score", ylab = "Prosper Score")
+```
+
+### Description One
+
+This simple boxplot is the core of my exploration. When I initially reviewed the Prosper Loans dataset, I noticed the Prosper Score and wondered how it was calculated. Boxplots graphically depict the symmetry of categorical and continuous data comparisons. It was a good choice for these attributes.
+
+In this visualization, we can easily observe a strong relationship between the credit score and Prosper Score. If the borrower's average credit score is high, the Prosper Score will be high as well. Both scores are crucial characteristics of Prosper's risk scoring process.
+
+Prosper Scores are derived from historical loan data collected after 2009. With additional analysis, we may be able to determine risks for borrowers with existing Prosper history vs. first time Prosper borrowers.
+
+### Plot Two
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width = 10}
+ggplot(data = loanData, aes(x = CreditScoreAverage, fill = EmploymentStatus)) + 
+  geom_histogram(binwidth = 500, aes(y = ..density..), color = "black") +
+  facet_wrap(~ EmploymentStatus, scale = "free") +
+  scale_y_continuous(breaks = c(3,6,9)) +
+  geom_density(color = "black", lwd = 0.5, alpha = 0.7) +
+  labs(title = "Credit Score by Employment Status", x = "Average Credit Score") + 
+  scale_fill_hue(l = 40, c = 150) +
+  xlim(300, 850)
+```
+
+### Description Two
+
+I was excited to discover the facet wrap feature of ggplot. Facet wraps create a sequential series of graphs. Each category can be explored as a unique property or in relation to other categories.
+
+Plots of this kind are easier for reader to quickly absorb. We can see more information about the borrowers for each unique employment type and decide if the employment status positively or negatively impacts lending risk factors like credit scoring.
+
+Retirees and self-employed borrowers have better credit scores than I expected. Income cannot eliminate the inherent risks of lending to borrowers with who frequently miss payments or acquire public records.
+
+### Plot Three
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_Three}
+ggcorr(loanData, label = TRUE, label_size = 3, hjust = 0.8, size = 2.5, color = "black", layout.exp = 2) +
+  labs(title = "Correlaton Matrix")
+```
+
+### Description Three
+
+This matrix is simple but it explains so much about the data. This is a quick glance at all of the loan characteristics that I chose to explore and their correlations with one another.
+
+------------------------------------------------------------------------
+
+# Reflection
+
+Loan risk scoring and creditworthiness calculation are complex subjects. The Prosper Loans dataset presents a great opportunity to explore the impact of loan and credit scores from the perspective of a borrower.
+
+It was somewhat disappointing to discover that borrower occupations and employment statuses are poorly categorized. A large number of occupation values are either blank or categorized as "Other" and "Professional". That may indicate that the borrower's occupation is not a key characteristic of a Prosper risk analysis.
+
+Requiring occupation and employment data for each loan would be a useful improvement. That data may highlight additional insights from supporting loan characteristics like long-term credit score stability. It would be fun to explore these attributes if they are available in the future.
+
+The stated income and employment status data was the most surprising to me. Further exploration of the existing data might reveal that the Prosper Scoring model differs for Retirees and unemployed borrowers vs. borrowers with common sources of income.
+
+Overall, this project was interesting and I enjoyed the exploration. This is my first time programming with R. I learned a lot about the language. I also gained new insights about the unique world of lending. That will certainly benefit me in my day to day work.
+        
+        
+# Sources
+
+RDocumentation Reference: <https://www.rdocumentation.org/>
+
+ggplot2 Reference: <https://ggplot2.tidyverse.org/reference/>
+
+diplyr Reference: <https://dplyr.tidyverse.org/>
+
+ggcor Reference: <https://briatte.github.io/ggcorr/>
+
+R Markdown Cookbook: <https://bookdown.org/yihui/rmarkdown-cookbook/>
+
+Advanced R Style Guide: <http://adv-r.had.co.nz/Style.html>
+
+RStudio Cheatsheets <https://www.rstudio.com/resources/cheatsheets/>
+
+Cookbook for R - Colorblind-friendly Palette <http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/#a-colorblind-friendly-palette>
+
+How to Read and Use Histograms in R: <https://flowingdata.com/2014/02/27/how-to-read-histograms-and-use-them-in-r/>
+
+Loading Data and Formatting in R: <https://flowingdata.com/2015/02/18/loading-data-and-basic-formatting-in-r/>
+
+Quick R - Subsetting Data: <https://www.statmethods.net/management/subset.html>
+
+Credit Score Information: <https://www.americanexpress.com/en-us/credit-cards/credit-intel/credit-score-ranges/>
+
+Sample Diamonds Exploration Provided by Udacity: <https://s3.amazonaws.com/content.udacity-data.com/courses/ud651/diamondsExample_2016-05.html>
+
+R Markdown Project Template provided by Udacity: <https://video.udacity-data.com/topher/2017/February/58af99ac_projecttemplate/projecttemplate.rmd>
