@@ -2,7 +2,7 @@
 
 This project is an Exploratory Data Analysis (EDA) with R. The project was created for Udacity's Data Analyst Nanodegree. 
 
-The .csv data file and EDA project outline were provided by Udacity.
+Access the final report here https://sbsousa.github.io/LoanEDA
 
 ## Project Description:
 
@@ -19,6 +19,8 @@ The EDA was conducted in R-Studio using multiple R packages such as knitr, diply
 This project is publicly available for educational purposes. Please acknowledge your sources.
 
 ## Sources
+
+The .csv data file and EDA project outline were provided by Udacity.
 https://www.udacity.com/course/data-analyst-nanodegree--nd002
 
-Additional sources are acknowledged in the code and report
+Additional sources are acknowledged in the code and report.
