@@ -20,7 +20,7 @@ This project is publicly available for educational purposes. Please acknowledge 
 
 ## Sources
 
-The .csv data file and EDA project outline were provided by Udacity:
+The CSV file and EDA project outline were provided by Udacity:
 
 https://www.udacity.com/course/data-analyst-nanodegree--nd002
 
